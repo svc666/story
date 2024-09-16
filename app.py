@@ -1,42 +1,27 @@
-from flask import Flask, request, jsonify
-import openai
-import os
+import streamlit as st
+import requests
 
-app = Flask(__name__)
+st.title('Children Story App')
 
-# Set your OpenAI API key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# Form for story generation
+with st.form(key='story_form'):
+    prompt = st.text_input('Enter a story prompt:')
+    submit_button = st.form_submit_button(label='Generate Story')
 
-@app.route('/')
-def home():
-    return 'Welcome to the Children Story App!'
+    if submit_button:
+        response = requests.post('http://your-ec2-public-dns/generate_story', json={'prompt': prompt})
+        if response.status_code == 200:
+            story = response.json().get('story', '')
+            st.write(story)
+        else:
+            st.error('Error generating story.')
 
-@app.route('/generate_story', methods=['POST'])
-def generate_story():
-    data = request.json
-    prompt = data.get('prompt', '')
-
-    try:
-        response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=prompt,
-            max_tokens=500
-        )
-        story = response.choices[0].text.strip()
-        return jsonify({'story': story})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/recommend_story', methods=['GET'])
-def recommend_story():
-    # Dummy recommendations for demonstration
-    recommendations = [
-        'The Magic Tree House',
-        'Charlotte\'s Web',
-        'Alice in Wonderland',
-        'The Little Prince'
-    ]
-    return jsonify({'recommendations': recommendations})
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# Recommendations section
+st.header('Recommended Stories')
+response = requests.get('http://your-ec2-public-dns/recommend_story')
+if response.status_code == 200:
+    recommendations = response.json().get('recommendations', [])
+    for rec in recommendations:
+        st.write(f'- {rec}')
+else:
+    st.error('Error fetching recommendations.')
